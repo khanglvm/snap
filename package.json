@@ -1,0 +1,20 @@
+{
+  "name": "@levu/snap",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "snap": "./dist/cli-entry.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/cli-entry.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
