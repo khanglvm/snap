@@ -8,10 +8,17 @@ It runs one action contract in 2 modes:
 
 It also enforces deterministic, text-only help so both **humans** and **AI agents** can discover commands reliably.
 
+For module/tool authors, Snap also exposes optional DX helper groups:
+- `SnapArgs` (typed argv readers/parsers)
+- `SnapHelp` (arg-schema driven help + commandline contracts)
+- `SnapRuntime` (standardized action result helpers)
+- `SnapTui` (typed flow/component definitions, including custom components)
+
 ## What this framework does
 
 - Enforces action triad at registration: `tui + commandline + help`
 - Uses one runtime engine for TUI and CLI paths
+- Uses Clack-powered prompt adapters for interactive TUI (`select`, `text`, `confirm`, `multiselect`)
 - Supports workflow transitions: `next`, `back`, `jump`, `exit`
 - Supports resume checkpoints for interrupted flows
 - Produces stable help output hierarchy:

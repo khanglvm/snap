@@ -1,9 +1,14 @@
 import type { ActionHelpView, HelpSection } from './help-model.js';
 
+const renderLine = (line: string): string =>
+  line
+    .split('\n')
+    .map((part, index) => (index === 0 ? `- ${part}` : `  ${part}`))
+    .join('\n');
+
 const renderSection = (section: HelpSection): string => {
   const header = `## ${section.title}`;
-  const lines =
-    section.lines.length > 0 ? section.lines.map((line) => `- ${line}`).join('\n') : '- (none)';
+  const lines = section.lines.length > 0 ? section.lines.map(renderLine).join('\n') : '- (none)';
   return `${header}\n${lines}`;
 };
 

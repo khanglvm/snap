@@ -1,5 +1,9 @@
-import { ExitCode } from '../core/errors/framework-errors.js';
 import type { ActionContract, ActionResultEnvelope, RuntimeMode } from '../core/contracts/action-contract.js';
+import { ExitCode } from '../core/errors/framework-errors.js';
+import type { CliArgs } from '../dx/args/index.js';
+import { createFlowController } from '../dx/runtime/index.js';
+import { createTerminalOutput } from '../dx/terminal/index.js';
+import { createPromptToolkit } from '../tui/prompt-toolkit.js';
 import type { RuntimeContext } from './runtime-context.js';
 import { ResumeStore } from './resume-store.js';
 import { StateMachine, type WorkflowNode } from './state-machine.js';
@@ -8,14 +12,29 @@ export interface EngineInput {
   moduleId: string;
   action: ActionContract;
   mode: RuntimeMode;
-  args: Record<string, string | boolean>;
+  args: CliArgs;
   workflowId?: string;
   workflowNodes?: WorkflowNode[];
   resumeStore?: ResumeStore;
 }
 
+const resolveWorkflowNodes = (action: ActionContract): WorkflowNode[] => {
+  if (action.tui.flow?.steps && action.tui.flow.steps.length > 0) {
+    return action.tui.flow.steps.map((step) => ({
+      id: step.stepId,
+      label: step.title
+    }));
+  }
+
+  if (action.tui.steps && action.tui.steps.length > 0) {
+    return action.tui.steps.map((step) => ({ id: step, label: step }));
+  }
+
+  return [{ id: 'default', label: 'default' }];
+};
+
 export const executeAction = async (input: EngineInput): Promise<ActionResultEnvelope> => {
-  const nodes = input.workflowNodes ?? input.action.tui.steps.map((step) => ({ id: step, label: step }));
+  const nodes = input.workflowNodes ?? resolveWorkflowNodes(input.action);
   const workflowId = input.workflowId ?? `${input.moduleId}.${input.action.actionId}`;
 
   let initialNodeId: string | undefined;
@@ -25,6 +44,9 @@ export const executeAction = async (input: EngineInput): Promise<ActionResultEnv
       initialNodeId = checkpoint.nodeId;
     }
   }
+  if (!initialNodeId && input.action.tui.flow?.entryStepId) {
+    initialNodeId = input.action.tui.flow.entryStepId;
+  }
 
   const stateMachine = new StateMachine(workflowId, nodes, initialNodeId);
   const context: RuntimeContext = {
@@ -32,6 +54,9 @@ export const executeAction = async (input: EngineInput): Promise<ActionResultEnv
     actionId: input.action.actionId,
     mode: input.mode,
     args: input.args,
+    flow: createFlowController(stateMachine),
+    terminal: createTerminalOutput(),
+    prompts: createPromptToolkit(),
     stateMachine
   };
 

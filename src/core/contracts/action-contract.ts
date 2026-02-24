@@ -1,15 +1,12 @@
 import type { HelpContract } from './help-contract.js';
 import type { RuntimeContext } from '../../runtime/runtime-context.js';
+import type { TuiContract } from './tui-contract.js';
 
 export type RuntimeMode = 'tui' | 'commandline';
 
 export interface CommandlineContract {
   requiredArgs: string[];
   optionalArgs?: string[];
-}
-
-export interface TuiContract {
-  steps: string[];
 }
 
 export interface ActionResultEnvelope<T = unknown> {

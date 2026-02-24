@@ -1,6 +1,7 @@
 import { ExitCode, FrameworkError } from '../core/errors/framework-errors.js';
 import type { ActionResultEnvelope } from '../core/contracts/action-contract.js';
 import type { ActionRegistry } from '../core/registry/action-registry.js';
+import type { CliArgs } from '../dx/args/index.js';
 import { executeAction } from './engine.js';
 import { resolveRuntimeMode } from './mode-resolver.js';
 import { FileResumeStore } from './resume-store.js';
@@ -9,7 +10,7 @@ export interface DispatchInput {
   registry: ActionRegistry;
   moduleId: string;
   actionId: string;
-  args: Record<string, string | boolean>;
+  args: CliArgs;
   isTTY: boolean;
   resumeFilePath?: string;
 }

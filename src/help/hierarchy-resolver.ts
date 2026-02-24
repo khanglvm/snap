@@ -42,7 +42,7 @@ const toActionHelp = (moduleId: string, action: ActionContract): ActionHelpView 
     { title: 'SUMMARY', lines: [action.help.summary] },
     {
       title: 'ARGS',
-      lines: action.help.args.map((arg) => `${arg.required ? '*' : '-'} ${arg.name}: ${arg.description}`)
+      lines: action.help.args.map((arg) => `${arg.name} (${arg.required ? 'required' : 'optional'}): ${arg.description}`)
     },
     { title: 'EXAMPLES', lines: action.help.examples },
     {

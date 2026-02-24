@@ -74,7 +74,9 @@ export class ActionRegistry {
   }
 
   private assertTriad(moduleId: string, action: ActionContract): void {
-    const hasTui = Array.isArray(action.tui?.steps) && action.tui.steps.length > 0;
+    const hasLegacySteps = Array.isArray(action.tui?.steps) && action.tui.steps.length > 0;
+    const hasFlowSteps = Array.isArray(action.tui?.flow?.steps) && action.tui.flow.steps.length > 0;
+    const hasTui = hasLegacySteps || hasFlowSteps;
     const hasCommandline = Array.isArray(action.commandline?.requiredArgs);
     const hasHelp =
       typeof action.help?.summary === 'string' &&
