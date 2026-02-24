@@ -20,7 +20,10 @@ const createContext = (): RuntimeContext =>
     terminal: {
       line: () => undefined,
       lines: () => undefined,
-      error: () => undefined
+      error: () => undefined,
+      info: () => undefined,
+      success: () => undefined,
+      warn: () => undefined
     },
     prompts: {
       text: async () => '',
@@ -29,6 +32,12 @@ const createContext = (): RuntimeContext =>
       multiselect: async () => [],
       group: async () => ({}),
       custom: async () => 'ok'
+    },
+    promptsConfig: {
+      text: {
+        paste: false,
+        multiline: false
+      }
     }
   }) as RuntimeContext;
 

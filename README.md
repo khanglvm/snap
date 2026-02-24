@@ -19,6 +19,7 @@ For module/tool authors, Snap also exposes optional DX helper groups:
 - Enforces action triad at registration: `tui + commandline + help`
 - Uses one runtime engine for TUI and CLI paths
 - Uses Clack-powered prompt adapters for interactive TUI (`select`, `text`, `confirm`, `multiselect`)
+- Text prompts support clipboard paste and multiline input for pasting multiple lines
 - Supports workflow transitions: `next`, `back`, `jump`, `exit`
 - Supports resume checkpoints for interrupted flows
 - Produces stable help output hierarchy:

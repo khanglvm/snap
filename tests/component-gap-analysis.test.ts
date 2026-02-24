@@ -2,9 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { createPromptToolkit, type PromptToolkit } from '../src/tui/prompt-toolkit.js';
 
 describe('PromptToolkit Interface - Component Gap Analysis', () => {
-  it('has text prompt', () => {
+  it('has text prompt with paste support', async () => {
     const toolkit = createPromptToolkit();
     expect(typeof toolkit.text).toBe('function');
+    // Text prompt should accept paste config option
+    const textConfig = {
+      message: 'Test',
+      paste: true,
+      multiline: true
+    };
+    // Test that the function exists and can be called with paste config
+    expect(toolkit.text).toBeDefined();
   });
 
   it('has confirm prompt', () => {

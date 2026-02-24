@@ -18,7 +18,7 @@ interface PromptToolkit {
 ```
 
 ### text
-Single-line text input with validation.
+Single-line text input with validation and optional paste/multiline support.
 
 ```typescript
 const name = await context.prompts.text({
@@ -31,6 +31,34 @@ const name = await context.prompts.text({
   }
 });
 ```
+
+**With Paste Support:**
+```typescript
+const description = await context.prompts.text({
+  message: 'Enter a description:',
+  paste: true,        // Enable clipboard paste (Ctrl+V / Cmd+V)
+  multiline: true,    // Allow multiple lines of input
+  placeholder: 'Paste or type your description here...'
+});
+```
+
+**Options:**
+- `message` (required): The prompt message
+- `placeholder`: Placeholder text when input is empty
+- `defaultValue` / `initialValue`: Initial value
+- `required`: Whether input is required (default: false)
+- `validate`: Custom validation function
+- `paste`: Enable clipboard paste support (default: false)
+- `multiline`: Allow multiple lines of input (default: false, implied by paste: true)
+
+**Paste Support Details:**
+When `paste` is enabled, users can paste from clipboard using:
+- macOS/Linux: `Cmd+V` or `Ctrl+V`
+- Windows: `Ctrl+V`
+
+Multi-line paste is automatically supported. Submit with:
+- `Alt+Enter` or `Cmd+Enter`
+- Double `Enter` (press Enter twice quickly)
 
 ### confirm
 Yes/no confirmation prompt.
@@ -125,12 +153,66 @@ spinner.message('Still working...');
 spinner.stop('Complete!');
 ```
 
+**⚠️ Important: Avoid Rapid Message Updates**
+
+Updating the spinner message too frequently (multiple times per second) can cause UI tearing and rendering issues. The spinner uses ANSI escape codes to update in-place, and rapid updates can overwhelm the terminal.
+
+**❌ AVOID - This causes UI tearing:**
+```typescript
+// DON'T: Update in a tight loop
+for (let i = 0; i < 1000; i++) {
+  spinner.message(`Processing item ${i}`);  // Too fast!
+  await processItem(i);
+}
+```
+
+**✅ RECOMMENDED - Batch updates or throttle:**
+```typescript
+// DO: Update at reasonable intervals
+for (let i = 0; i < 1000; i++) {
+  // Only update every 100 items
+  if (i % 100 === 0) {
+    spinner.message(`Processing item ${i}`);
+  }
+  await processItem(i);
+}
+spinner.stop(`Processed ${1000} items`);
+```
+
+**✅ Alternative - Use percentage for progress:**
+```typescript
+const total = 1000;
+for (let i = 0; i < total; i++) {
+  // Update every 5% progress
+  if (i % Math.floor(total * 0.05) === 0) {
+    const percent = Math.floor((i / total) * 100);
+    spinner.message(`Processing... ${percent}%`);
+  }
+  await processItem(i);
+}
+```
+
 **Interface:**
 ```typescript
 interface Spinner {
   start(message?: string): void;
   stop(message?: string): void;
+  cancel(message?: string): void;
+  error(message?: string): void;
   message(message: string): void;
+  clear(): void;
+  readonly isCancelled: boolean;
+}
+
+interface SpinnerOptions {
+  message?: string;
+  indicator?: 'dots' | 'timer';
+  onCancel?: () => void;
+  cancelMessage?: string;
+  errorMessage?: string;
+  frames?: string[];
+  delay?: number;
+  styleFrame?: (frame: string) => string;
 }
 ```
 
@@ -328,6 +410,7 @@ context.terminal.error('Error message');
 | Component | Import From | Also Available Via |
 |-----------|-------------|-------------------|
 | text, confirm, select, multiselect, group, custom | `createPromptToolkit()` | `context.prompts` |
+| text with paste/multiline support | `'snap-framework'` | `context.prompts.text({ paste: true, multiline: true })` |
 | createSpinner, spinner | `'snap-framework'` | `SnapTui.createSpinner` |
 | runPasswordPrompt | `'snap-framework'` | Direct import only |
 | createProgress, progress | - | `SnapTui.createProgress` |

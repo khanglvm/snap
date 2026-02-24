@@ -16,6 +16,8 @@ export { createSpinner, spinner } from './tui/component-adapters/spinner.js';
 export type { Spinner, SpinnerOptions } from './tui/component-adapters/spinner.js';
 export { runPasswordPrompt } from './tui/component-adapters/password.js';
 export type { PasswordPromptInput } from './tui/component-adapters/password.js';
+export { createMultilineTextPrompt } from './tui/component-adapters/multiline-text.js';
+export type { MultilineTextOptions } from './tui/component-adapters/multiline-text.js';
 
 export const createRegistry = (modules: ModuleContract[]): ActionRegistry => {
   const registry = new ActionRegistry();
