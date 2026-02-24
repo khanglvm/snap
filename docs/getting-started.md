@@ -227,8 +227,15 @@ Ensure your `tsconfig.json` is configured correctly:
   - [SnapArgs](./snap-args.md) - Type-safe argument reading
   - [SnapHelp](./snap-help.md) - Schema-driven help generation
   - [SnapRuntime](./snap-runtime.md) - Standardized action results
-  - [SnapTui](./snap-tui.md) - Typed TUI flow definitions
+  - [SnapTui](./snap-tui.md) - Typed TUI flow definitions + advanced UI components
   - [SnapTerminal](./snap-terminal.md) - Terminal output helpers
+
+- Check the [Component Reference](./component-reference.md) for all available UI components including:
+  - Spinner (loader for async operations)
+  - Password prompt (secure input)
+  - Tasks (sequential operations)
+  - Autocomplete (searchable selections)
+  - Note (decorative message boxes)
 
 - Explore [Integration Examples](./integration-examples.md) for common patterns
 

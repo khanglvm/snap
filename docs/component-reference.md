@@ -1,12 +1,10 @@
 # Component Reference & API Coverage
 
-This document provides a complete reference of all Snap components, including those available through the public API and internal/advanced components.
+This document provides a complete reference of all Snap components available through the public API.
 
-## Public API Components
+## Basic Prompt Components (via `PromptToolkit`)
 
-### TUI Prompt Components (via `PromptToolkit`)
-
-Accessed through `context.prompts`:
+Accessed through `context.prompts` in your action handlers:
 
 ```typescript
 interface PromptToolkit {
@@ -19,9 +17,8 @@ interface PromptToolkit {
 }
 ```
 
-#### text
-
-Single-line text input.
+### text
+Single-line text input with validation.
 
 ```typescript
 const name = await context.prompts.text({
@@ -35,15 +32,8 @@ const name = await context.prompts.text({
 });
 ```
 
-**Options:**
-- `message`: Display message (required)
-- `placeholder`: Placeholder text
-- `defaultValue`: Initial value
-- `validate`: Validation function returning error message or undefined
-
-#### confirm
-
-Yes/no confirmation.
+### confirm
+Yes/no confirmation prompt.
 
 ```typescript
 const confirmed = await context.prompts.confirm({
@@ -51,13 +41,8 @@ const confirmed = await context.prompts.confirm({
 });
 ```
 
-**Options:**
-- `message`: Display message (required)
-- `initialValue`: Default selection (true/false)
-
-#### select
-
-Single-choice selection.
+### select
+Single-choice selection from options.
 
 ```typescript
 const environment = await context.prompts.select({
@@ -71,14 +56,8 @@ const environment = await context.prompts.select({
 });
 ```
 
-**Options:**
-- `message`: Display message (required)
-- `options`: Array of {value, label} (required)
-- `initialValue`: Default selected value
-
-#### multiselect
-
-Multi-choice selection.
+### multiselect
+Multi-choice selection from options.
 
 ```typescript
 const features = await context.prompts.multiselect({
@@ -92,14 +71,7 @@ const features = await context.prompts.multiselect({
 });
 ```
 
-**Options:**
-- `message`: Display message (required)
-- `options`: Array of {value, label} (required)
-- `required`: Whether at least one selection is required
-- `initialValues`: Default selected values
-
-#### group
-
+### group
 Run multiple prompts and collect results.
 
 ```typescript
@@ -116,15 +88,11 @@ const results = await context.prompts.group([
 // results = { name: '...', email: '...' }
 ```
 
-**Options:**
-- Array of `{ key: string, run: () => Promise<T> }`
-
-#### custom
-
-Custom prompt with validation and parsing.
+### custom
+Custom prompt with validation and parsing to different types.
 
 ```typescript
-const port = await context.prompts.custom({
+const port = await context.prompts.custom<number>({
   message: 'Enter port number:',
   defaultValue: '3000',
   required: true,
@@ -137,33 +105,20 @@ const port = await context.prompts.custom({
 });
 ```
 
-**Options:**
-- `message`: Display message (required)
-- `defaultValue`: Default value
-- `required`: Whether value is required
-- `parse`: Function to parse string to target type
-- `validate`: Validation function returning error message or undefined
-- `onValue`: Callback when value changes
-- `onSubmit`: Callback when form is submitted
-- `onCancel`: Callback when user cancels
-- `signal`: AbortSignal for cancellation
+## Advanced UI Components (via SnapTui)
 
-## Internal/Advanced Components
+Import these from `snap-framework` or access via `SnapTui` namespace:
 
-These components exist in the codebase but are not directly exported through the main public API. They can be accessed directly if needed.
+### Spinner (createSpinner/spinner)
 
-### Spinner
-
-Located at: `/Users/khang/Documents/repo/snap/src/tui/component-adapters/spinner.ts`
-
-**Usage Pattern:**
+**Loader component for async operations.**
 
 ```typescript
-import { createSpinner } from './src/tui/component-adapters/spinner.js';
+import { createSpinner } from 'snap-framework';
+// or
+const spinner = SnapTui.createSpinner();
 
-const spinner = createSpinner({ message: 'Loading...' });
-
-spinner.start('Starting operation...');
+spinner.start('Loading...');
 // ... do work
 spinner.message('Still working...');
 // ... more work
@@ -171,7 +126,6 @@ spinner.stop('Complete!');
 ```
 
 **Interface:**
-
 ```typescript
 interface Spinner {
   start(message?: string): void;
@@ -180,16 +134,12 @@ interface Spinner {
 }
 ```
 
-**Note:** Not currently exported through the main Snap API. To use in your module, import directly from the source path or use terminal output for progress messages.
+### Password Prompt (runPasswordPrompt)
 
-### Password Prompt
-
-Located at: `/Users/khang/Documents/repo/snap/src/tui/component-adapters/password.ts`
-
-**Usage Pattern:**
+**Secure text input for sensitive data.**
 
 ```typescript
-import { runPasswordPrompt } from './src/tui/component-adapters/password.js';
+import { runPasswordPrompt } from 'snap-framework';
 
 const password = await runPasswordPrompt({
   message: 'Enter password:',
@@ -199,7 +149,6 @@ const password = await runPasswordPrompt({
 ```
 
 **Interface:**
-
 ```typescript
 interface PasswordPromptInput {
   message: string;
@@ -209,88 +158,262 @@ interface PasswordPromptInput {
 }
 ```
 
-**Note:** Not currently exported through the main Snap API.
+### Progress (createProgress/progress)
 
-## Gaps and Missing Components
-
-### Loader Component
-
-**Status:** Not available as a distinct TUI component in the public API.
-
-**Workaround:** Use one of these approaches:
-
-1. **Use terminal output with messages:**
-   ```typescript
-   context.terminal.line('Loading...');
-   // ... do work
-   context.terminal.line('✓ Complete');
-   ```
-
-2. **Import spinner directly (advanced):**
-   ```typescript
-   import { createSpinner } from './src/tui/component-adapters/spinner.js';
-
-   const spinner = createSpinner();
-   spinner.start('Loading...');
-   // ... work
-   spinner.stop('Done!');
-   ```
-
-3. **Use custom prompt for progress:**
-   ```typescript
-   const progress = await context.prompts.custom({
-     message: 'Processing...',
-     defaultValue: '0',
-     parse: (v) => parseInt(v, 10)
-   });
-   ```
-
-### Progress Bar
-
-**Status:** Not available.
-
-**Workaround:** Use terminal output:
+**Progress indicator for quantified operations.**
 
 ```typescript
-const total = 100;
-for (let i = 0; i <= total; i += 10) {
-  const bar = '█'.repeat(i / 10) + '░'.repeat(10 - i / 10);
-  process.stdout.write(`\r[${bar}] ${i}%`);
-  await doWork();
-}
-process.stdout.write('\n');
+const progress = SnapTui.createProgress();
+
+progress.start('Processing files...');
+progress.message('File 1 of 10...');
+progress.message('File 2 of 10...');
+progress.stop('✓ All files processed');
 ```
 
-### Dynamic/Editable List
+**Interface:**
+```typescript
+interface Progress {
+  start(message: string): void;
+  message(message: string): void;
+  stop(message?: string): void;
+}
+```
 
-**Status:** Not available as a built-in component.
+### Tasks (tasks)
 
-**Workaround:** Use multiselect or implement custom prompt:
+**Sequential async operations with visual feedback.**
 
 ```typescript
-// Use multiselect for selection
-const items = await context.prompts.multiselect({
-  message: 'Select items to edit:',
-  options: existingItems.map(item => ({ value: item.id, label: item.name }))
+const results = await SnapTui.tasks([
+  {
+    title: 'Install dependencies',
+    task: async (msg) => {
+      msg('Installing packages...');
+      await installPackages();
+      return 'Dependencies installed';
+    }
+  },
+  {
+    title: 'Run tests',
+    task: async (msg) => {
+      msg('Running test suite...');
+      await runTests();
+      return 'All tests passed';
+    }
+  },
+  {
+    title: 'Build',
+    task: async (msg) => {
+      msg('Compiling...');
+      await build();
+      return 'Build complete';
+    }
+  }
+]);
+```
+
+**Interface:**
+```typescript
+interface Task {
+  title: string;
+  task: (message: (msg: string) => void) => Promise<string>;
+}
+
+interface TasksOptions {
+  onCancel?: (results: Record<string, string>) => void;
+}
+```
+
+### Note (note)
+
+**Decorative message box for important information.**
+
+```typescript
+SnapTui.note({
+  message: 'This operation may take several minutes.\nPlease do not close your terminal.',
+  title: 'INFO'
 });
 
-// Then prompt for edits
-for (const itemId of items) {
-  const newValue = await context.prompts.text({
-    message: `Edit ${itemId}:`
-  });
-  // ... update item
+// With custom formatting
+SnapTui.note({
+  message: 'You can use --help to see all options.',
+  title: 'TIP',
+  format: (line) => `💡 ${line}`
+});
+```
+
+**Interface:**
+```typescript
+interface NoteInput {
+  message: string;
+  title?: string;
+  format?: (line: string) => string;
 }
 ```
 
-### Table Display
+### Autocomplete (runAutocompletePrompt)
 
-**Status:** Not available as a TUI component.
-
-**Workaround:** Use terminal output with formatted strings:
+**Searchable selection for large option lists.**
 
 ```typescript
-context.terminal.line('');
+const selected = await SnapTui.runAutocompletePrompt({
+  message: 'Select a package:',
+  options: [
+    { value: 'react', label: 'React', hint: 'A JavaScript library for UIs' },
+    { value: 'vue', label: 'Vue.js', hint: 'Progressive framework' },
+    { value: 'svelte', label: 'Svelte', hint: 'Cybernetically enhanced web apps' }
+  ],
+  placeholder: 'Search packages...',
+  maxItems: 5,
+  required: true
+});
+```
+
+**Interface:**
+```typescript
+interface AutocompleteOption {
+  value: string;
+  label: string;
+  hint?: string;
+}
+
+interface AutocompleteInput {
+  message: string;
+  options: AutocompleteOption[];
+  placeholder?: string;
+  initialValue?: string;
+  maxItems?: number;
+  required?: boolean;
+  validate?: (value: string) => string | Error | undefined;
+}
+```
+
+## Terminal Utilities (via SnapTerminal)
+
+### Intro/Outro
+
+**Consistent welcome and closing messages.**
+
+```typescript
+import * as SnapTerminal from 'snap-framework';
+
+SnapTerminal.intro('Welcome to My Tool');
+SnapTerminal.outro('Thank you for using My Tool');
+```
+
+### Log
+
+**Structured logging with different levels.**
+
+```typescript
+SnapTerminal.log.info('Processing started...');
+SnapTerminal.log.success('Operation completed!');
+SnapTerminal.log.warn('Configuration file not found, using defaults');
+SnapTerminal.log.error('Failed to connect to service');
+```
+
+## Terminal Output (via context.terminal)
+
+Basic terminal output available in all actions:
+
+```typescript
+context.terminal.line('Single line of output');
+context.terminal.lines(['Line 1', 'Line 2', 'Line 3']);
+context.terminal.error('Error message');
+```
+
+## Component Import Summary
+
+| Component | Import From | Also Available Via |
+|-----------|-------------|-------------------|
+| text, confirm, select, multiselect, group, custom | `createPromptToolkit()` | `context.prompts` |
+| createSpinner, spinner | `'snap-framework'` | `SnapTui.createSpinner` |
+| runPasswordPrompt | `'snap-framework'` | Direct import only |
+| createProgress, progress | - | `SnapTui.createProgress` |
+| tasks | - | `SnapTui.tasks` |
+| note | - | `SnapTui.note` |
+| runAutocompletePrompt | - | `SnapTui.runAutocompletePrompt` |
+| intro, outro | - | `SnapTerminal.intro`, `SnapTerminal.outro` |
+| log | - | `SnapTerminal.log` |
+
+## Example: Using Multiple Components
+
+```typescript
+import type { ModuleContract } from 'snap-framework';
+import { ExitCode } from 'snap-framework';
+import { createSpinner, runPasswordPrompt } from 'snap-framework';
+import * as SnapTui from 'snap-framework';
+import * as SnapTerminal from 'snap-framework';
+
+const myModule: ModuleContract = {
+  moduleId: 'my',
+  description: 'My module',
+  actions: [{
+    actionId: 'action',
+    description: 'My action',
+    tui: { steps: ['step1'] },
+    commandline: { requiredArgs: [] },
+    help: { summary: 'My action' },
+    run: async (context) => {
+      // Intro
+      SnapTerminal.intro('Starting operation');
+
+      // Note
+      SnapTui.note({
+        message: 'This will take a few moments.',
+        title: 'INFO'
+      });
+
+      // Spinner
+      const spinner = createSpinner();
+      spinner.start('Processing...');
+      await doWork();
+      spinner.stop('✓ Complete');
+
+      // Autocomplete
+      const selection = await SnapTui.runAutocompletePrompt({
+        message: 'Choose an option:',
+        options: [
+          { value: 'a', label: 'Option A' },
+          { value: 'b', label: 'Option B' }
+        ]
+      });
+
+      // Tasks
+      const results = await SnapTui.tasks([
+        {
+          title: 'Task 1',
+          task: async () => 'Done'
+        }
+      ]);
+
+      // Log
+      SnapTerminal.log.success('All operations complete');
+
+      // Outro
+      SnapTerminal.outro('Finished!');
+
+      return {
+        ok: true,
+        mode: context.mode,
+        exitCode: ExitCode.SUCCESS,
+        data: { selection, results }
+      };
+    }
+  }]
+};
+```
+
+## Not Available (Use Alternatives)
+
+### Progress Bar
+Snap uses spinner-style progress indicators rather than percentage-based progress bars. Use `createSpinner` or `createProgress` for visual feedback.
+
+### Table Display
+Use terminal output with formatted strings:
+
+```typescript
 context.terminal.line('Name          Email           Role');
 context.terminal.line('───────────── ─────────────── ──────');
 for (const user of users) {
@@ -301,26 +424,20 @@ for (const user of users) {
 ```
 
 ### Forms with Field Dependencies
-
-**Status:** Not natively supported (conditional display).
-
-**Workaround:** Use flow control:
+Use conditional flow control in your action:
 
 ```typescript
 run: async (context) => {
-  const useAuth = await context.prompts.confirm({
-    message: 'Enable authentication?'
+  const useFeature = await context.prompts.confirm({
+    message: 'Enable this feature?'
   });
 
-  if (useAuth) {
-    const provider = await context.prompts.select({
-      message: 'Auth provider:',
-      options: [
-        { value: 'oauth', label: 'OAuth' },
-        { value: 'basic', label: 'Basic Auth' }
-      ]
+  if (useFeature) {
+    const option = await context.prompts.select({
+      message: 'Choose configuration:',
+      options: [/* ... */]
     });
-    // ... configure auth
+    // ... configure feature
   }
 
   return { ok: true, /* ... */ };
@@ -330,7 +447,6 @@ run: async (context) => {
 ## Component Type Reference
 
 ### TuiOptionContract
-
 ```typescript
 interface TuiOptionContract {
   value: string;
@@ -338,126 +454,21 @@ interface TuiOptionContract {
 }
 ```
 
-### TuiComponentContract
+### AutocompleteOption
+```typescript
+interface AutocompleteOption {
+  value: string;
+  label: string;
+  hint?: string;
+}
+```
 
+### TuiComponentContract (Flow Definitions)
 ```typescript
 type TuiComponentContract =
-  | TextTuiComponent
-  | SelectTuiComponent
-  | MultiSelectTuiComponent
-  | ConfirmTuiComponent
-  | TuiCustomComponentContract;
+  | TextTuiComponent      // type: 'text'
+  | SelectTuiComponent    // type: 'select'
+  | MultiSelectTuiComponent  // type: 'multiselect'
+  | ConfirmTuiComponent   // type: 'confirm'
+  | TuiCustomComponentContract;  // type: 'custom'
 ```
-
-### TextTuiComponent
-
-```typescript
-interface TextTuiComponent {
-  componentId: string;
-  type: 'text';
-  label: string;
-  arg: string;
-  required?: boolean;
-  initialValue?: string;
-  placeholder?: string;
-}
-```
-
-### SelectTuiComponent
-
-```typescript
-interface SelectTuiComponent {
-  componentId: string;
-  type: 'select';
-  label: string;
-  arg: string;
-  required?: boolean;
-  options: TuiOptionContract[];
-  initialValue?: string;
-}
-```
-
-### MultiSelectTuiComponent
-
-```typescript
-interface MultiSelectTuiComponent {
-  componentId: string;
-  type: 'multiselect';
-  label: string;
-  arg: string;
-  required?: boolean;
-  options: TuiOptionContract[];
-  initialValues?: string[];
-}
-```
-
-### ConfirmTuiComponent
-
-```typescript
-interface ConfirmTuiComponent {
-  componentId: string;
-  type: 'confirm';
-  label: string;
-  arg: string;
-  required?: boolean;
-  initialValue?: boolean;
-}
-```
-
-### TuiCustomComponentContract
-
-```typescript
-interface TuiCustomComponentContract<TConfig = Record<string, unknown>> {
-  componentId: string;
-  type: 'custom';
-  label: string;
-  arg: string;
-  required?: boolean;
-  renderer: string;
-  config: TConfig;
-}
-```
-
-## Recommendations for Missing Components
-
-### For Authors Who Need a Loader
-
-Use terminal output for most cases:
-
-```typescript
-context.terminal.line('Processing...');
-await performOperation();
-context.terminal.line('✓ Complete');
-```
-
-This is the most compatible approach across TUI and CLI modes.
-
-### For Password Input
-
-Direct import (note: path may change in future versions):
-
-```typescript
-import { runPasswordPrompt } from './src/tui/component-adapters/password.js';
-
-// But be aware this is an internal implementation detail
-// Consider submitting a PR to expose it through the public API
-```
-
-Alternatively, use text input with masked display (not truly secure but prevents casual shoulder-surfing):
-
-```typescript
-const password = await context.prompts.custom({
-  message: 'Enter password:',
-  required: true
-});
-```
-
-### Future Enhancements
-
-If you need these components, consider:
-
-1. **Submitting an issue** requesting the feature
-2. **Submitting a PR** to add the component to the public API
-3. **Using internal imports** with awareness that paths may change
-
-The Snap framework is actively developed and component coverage may expand based on community needs.
