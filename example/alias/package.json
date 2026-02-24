@@ -1,0 +1,21 @@
+{
+  "name": "alias",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "alias": "./bin/alias.js"
+  },
+  "scripts": {
+    "build": "esbuild src/cli-entry.ts --bundle --platform=node --format=esm --outfile=dist/cli-entry.js",
+    "dev": "tsx src/cli-entry.ts",
+    "start": "node ./bin/alias.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.0.0"
+  }
+}

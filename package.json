@@ -1,6 +1,6 @@
 {
   "name": "@levu/snap",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "bin": {
     "snap": "./dist/cli-entry.js"
@@ -19,5 +19,15 @@
     "tsx": "^4.20.3",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ]
 }

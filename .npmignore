@@ -1,0 +1,30 @@
+# Source files
+src/
+tests/
+*.ts
+!*.d.ts
+
+# Config files
+tsconfig*.json
+vitest.config.ts
+
+# Development files
+.vscode/
+.idea/
+node_modules/
+.DS_Store
+
+# Documentation (except README)
+docs/
+plans/
+
+# Build artifacts that shouldn't be published
+*.log
+
+# CI/CD
+.github/
+
+# Misc
+*.tgz
+repomix-output.xml
+example/
