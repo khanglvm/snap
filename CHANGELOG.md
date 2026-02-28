@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.10] - 2026-02-28
+
+### Fixed
+- Seeded multiline prompt readline buffer from `initialValue`, so editing existing values supports character-by-character backspace/delete behavior.
+- Improved multiline paste recovery when terminal submit flow collapses newline-separated URLs into a concatenated single line.
+- Added regression coverage for concatenated submit recovery and initial-value editability.
+
 ## [0.3.9] - 2026-02-28
 
 ### Fixed

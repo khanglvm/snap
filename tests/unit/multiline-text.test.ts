@@ -407,4 +407,70 @@ describe('createMultilineTextPrompt keyboard behavior', () => {
     const result = await resultPromise;
     expect(result).toBe('https://ramclouds.me/\nhttps://ramclouds.me/v1');
   });
+
+  it('recovers full multiline paste when submit line is concatenated without newline', async () => {
+    const input = new MockInput();
+    const output = new MockOutput();
+    const rl = createMockReadline();
+
+    vi.doMock('node:readline', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('node:readline')>();
+      return {
+        ...actual,
+        createInterface: vi.fn(() => rl),
+        emitKeypressEvents: vi.fn()
+      };
+    });
+
+    const { createMultilineTextPrompt } = await import('../../src/tui/component-adapters/multiline-text.js');
+    const prompt = createMultilineTextPrompt();
+
+    const resultPromise = prompt({
+      message: 'Provider endpoints',
+      allowPaste: true,
+      input: input as unknown as NodeJS.ReadStream,
+      output: output as unknown as NodeJS.WriteStream
+    });
+
+    input.emit('data', Buffer.from('https://ai.megallm.io\nhttps://ai.megallm.io/v1'));
+    rl.line = 'https://ai.megallm.iohttps://ai.megallm.io/v1';
+    await new Promise((resolve) => setTimeout(resolve, 90));
+    input.emit('keypress', '\r', { name: 'enter' });
+
+    const result = await resultPromise;
+    expect(result).toBe('https://ai.megallm.io\nhttps://ai.megallm.io/v1');
+  });
+
+  it('seeds readline line from initial value so edits can backspace one character at a time', async () => {
+    const input = new MockInput();
+    const output = new MockOutput();
+    const rl = createMockReadline();
+
+    vi.doMock('node:readline', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('node:readline')>();
+      return {
+        ...actual,
+        createInterface: vi.fn(() => rl),
+        emitKeypressEvents: vi.fn()
+      };
+    });
+
+    const { createMultilineTextPrompt } = await import('../../src/tui/component-adapters/multiline-text.js');
+    const prompt = createMultilineTextPrompt();
+
+    const resultPromise = prompt({
+      message: 'Provider endpoints',
+      allowPaste: true,
+      initialValue: 'https://ai.megallm.io/v1',
+      input: input as unknown as NodeJS.ReadStream,
+      output: output as unknown as NodeJS.WriteStream
+    });
+
+    expect(rl.line).toBe('https://ai.megallm.io/v1');
+    rl.line = 'https://ai.megallm.io/v';
+    input.emit('keypress', '\r', { name: 'enter' });
+
+    const result = await resultPromise;
+    expect(result).toBe('https://ai.megallm.io/v');
+  });
 });

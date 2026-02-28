@@ -115,6 +115,10 @@ export const createMultilineTextPrompt = () => {
 
       const lines = value.split('\n');
       let currentLine = lines.length > 0 ? lines.pop()! : '';
+      (rl as any).line = currentLine;
+      if (typeof (rl as any).cursor === 'number') {
+        (rl as any).cursor = currentLine.length;
+      }
 
       const getLiveLine = (): string => {
         const rlLine = typeof (rl as any).line === 'string' ? (rl as any).line : '';
@@ -180,7 +184,12 @@ export const createMultilineTextPrompt = () => {
 
         const normalizedPrimary = String(primary || '').trim();
         const recoveredLastLine = recoveredLines[recoveredLines.length - 1] || '';
-        if (normalizedPrimary && recoveredLastLine !== normalizedPrimary) return '';
+        const recoveredJoined = recoveredLines.join('');
+        if (
+          normalizedPrimary &&
+          recoveredLastLine !== normalizedPrimary &&
+          recoveredJoined !== normalizedPrimary
+        ) return '';
 
         return recoveredLines.join('\n');
       };

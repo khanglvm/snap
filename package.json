@@ -1,6 +1,6 @@
 {
   "name": "@levu/snap",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "type": "module",
   "bin": {
     "snap": "./dist/cli-entry.js"
