@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.11] - 2026-02-28
+
+### Fixed
+- Added direct handling of bracketed paste payloads from raw input stream to preserve multiline content in Ghostty-like terminals.
+- Kept compatibility with readline `line`-event paste flow while avoiding duplicate line ingestion when raw bracketed payload is available.
+- Added regression coverage for bracketed paste payload capture without `line` events.
+
 ## [0.3.10] - 2026-02-28
 
 ### Fixed

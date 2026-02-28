@@ -62,6 +62,9 @@ export const createMultilineTextPrompt = () => {
       let expectingGhosttySequenceEcho = false;
       let bracketPasteActive = false;
       let bracketPasteProbe = '';
+      let bracketPasteBuffer = '';
+      let bracketPasteHasRawPayload = false;
+      let suppressLineEventsUntil = 0;
       let pendingEnterSubmit = false;
       let pendingEnterSubmitTimer: NodeJS.Timeout | undefined;
       let recentPasteBurstUntil = 0;
@@ -226,6 +229,20 @@ export const createMultilineTextPrompt = () => {
         output.write(`\n${pc.dim('> ')}${getLiveLine()}`);
       };
 
+      const applyPastedText = (rawPasted: string) => {
+        const normalized = String(rawPasted || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        if (!normalized) return;
+        const merged = `${getLiveLine()}${normalized}`;
+        const pastedLines = merged.split('\n');
+        if (pastedLines.length > 1) {
+          lines.push(...pastedLines.slice(0, -1));
+          currentLine = pastedLines[pastedLines.length - 1];
+        } else {
+          currentLine = merged;
+        }
+        (rl as any).line = currentLine;
+      };
+
       const BRACKET_PASTE_START = '\u001b[200~';
       const BRACKET_PASTE_END = '\u001b[201~';
       const BRACKET_PASTE_PROBE_MAX = 96;
@@ -271,6 +288,38 @@ export const createMultilineTextPrompt = () => {
         }
       };
 
+      const ingestBracketedPasteChunk = (chunk: string) => {
+        if (!chunk) return;
+        let rest = chunk;
+
+        while (rest.length > 0) {
+          if (!bracketPasteActive) {
+            const startIndex = rest.indexOf(BRACKET_PASTE_START);
+            if (startIndex < 0) return;
+            bracketPasteActive = true;
+            rest = rest.slice(startIndex + BRACKET_PASTE_START.length);
+            continue;
+          }
+
+          const endIndex = rest.indexOf(BRACKET_PASTE_END);
+          if (endIndex < 0) {
+            if (rest.length > 0) bracketPasteHasRawPayload = true;
+            bracketPasteBuffer += rest;
+            return;
+          }
+
+          if (endIndex > 0) bracketPasteHasRawPayload = true;
+          bracketPasteBuffer += rest.slice(0, endIndex);
+          bracketPasteActive = false;
+          applyPastedText(bracketPasteBuffer);
+          bracketPasteBuffer = '';
+          bracketPasteHasRawPayload = false;
+          suppressLineEventsUntil = Math.max(suppressLineEventsUntil, Date.now() + 60);
+          showPrompt();
+          rest = rest.slice(endIndex + BRACKET_PASTE_END.length);
+        }
+      };
+
       showPrompt();
 
       // Handle paste from clipboard
@@ -312,6 +361,7 @@ export const createMultilineTextPrompt = () => {
 
       rl.on('line', (line: string) => {
         if (cancelled) return;
+        if ((bracketPasteActive && bracketPasteHasRawPayload) || Date.now() < suppressLineEventsUntil) return;
         const now = Date.now();
 
         if (pendingEnterSubmit) {
@@ -390,6 +440,7 @@ export const createMultilineTextPrompt = () => {
         dataListener = (chunk: unknown) => {
           if (cancelled) return;
           const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk ?? '');
+          ingestBracketedPasteChunk(text);
           updateBracketPasteState(text);
           notePossiblePasteBurst(text);
         };
@@ -436,19 +487,7 @@ export const createMultilineTextPrompt = () => {
             if (pasted) {
               // Clear current line and show pasted content
               output.write('\r' + ' '.repeat(process.stdout.columns || 80) + '\r');
-
-              const pastedLines = pasted.split('\n');
-              if (pastedLines.length > 1) {
-                // Multiline paste
-                lines.push(...pastedLines.slice(0, -1));
-                currentLine = pastedLines[pastedLines.length - 1];
-              } else {
-                // Single line paste
-                currentLine += pasted;
-              }
-
-              (rl as any).line = currentLine;
-
+              applyPastedText(pasted);
               output.write(`${pc.dim('> ')}${currentLine}`);
             }
           } else if (isGhosttyShiftEnter(str, key)) {

@@ -304,6 +304,38 @@ describe('createMultilineTextPrompt keyboard behavior', () => {
     expect(result).toBe('model-one\nmodel-two');
   });
 
+  it('captures bracketed paste payload directly from raw stream without relying on line events', async () => {
+    const input = new MockInput();
+    const output = new MockOutput();
+    const rl = createMockReadline();
+
+    vi.doMock('node:readline', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('node:readline')>();
+      return {
+        ...actual,
+        createInterface: vi.fn(() => rl),
+        emitKeypressEvents: vi.fn()
+      };
+    });
+
+    const { createMultilineTextPrompt } = await import('../../src/tui/component-adapters/multiline-text.js');
+    const prompt = createMultilineTextPrompt();
+
+    const resultPromise = prompt({
+      message: 'Provider endpoints',
+      allowPaste: true,
+      input: input as unknown as NodeJS.ReadStream,
+      output: output as unknown as NodeJS.WriteStream
+    });
+
+    input.emit('data', Buffer.from('\u001b[200~https://ai.megallm.io\nhttps://ai.megallm.io/v1\u001b[201~'));
+    await new Promise((resolve) => setTimeout(resolve, 90));
+    input.emit('keypress', '\r', { name: 'enter' });
+
+    const result = await resultPromise;
+    expect(result).toBe('https://ai.megallm.io\nhttps://ai.megallm.io/v1');
+  });
+
   it('captures pending second line on Enter submit after multi-line paste', async () => {
     const input = new MockInput();
     const output = new MockOutput();
