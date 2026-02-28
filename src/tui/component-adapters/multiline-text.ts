@@ -1,9 +1,11 @@
 import { Readable } from 'node:stream';
-import { createInterface, Interface as RLInterface } from 'node:readline';
+import { createInterface, emitKeypressEvents, Interface as RLInterface } from 'node:readline';
 import { Writable } from 'node:stream';
 import { TextPrompt } from '@clack/core';
-import * as pc from 'picocolors';
+import pcModule from 'picocolors';
 import { isCancel } from '@clack/prompts';
+
+const pc = (pcModule as any)?.default ?? (pcModule as any);
 
 export interface MultilineTextOptions {
   message: string;
@@ -53,8 +55,34 @@ export const createMultilineTextPrompt = () => {
 
       let value = initialValue;
       let cancelled = false;
+      let rawModeEnabled = false;
+      let keypressListener: ((str: string, key: any) => Promise<void>) | undefined;
+      let dataListener: ((chunk: unknown) => void) | undefined;
+      let ignoreNextLineEvent = false;
+      let expectingGhosttySequenceEcho = false;
+      let bracketPasteActive = false;
+      let bracketPasteProbe = '';
+      let pendingEnterSubmit = false;
+      let pendingEnterSubmitTimer: NodeJS.Timeout | undefined;
+      let recentPasteBurstUntil = 0;
+      let sawPasteLikeRawInput = false;
+      let recentPasteRawBuffer = '';
 
       const cleanup = () => {
+        if (pendingEnterSubmitTimer) {
+          clearTimeout(pendingEnterSubmitTimer);
+          pendingEnterSubmitTimer = undefined;
+        }
+        if (keypressListener) {
+          input.off('keypress', keypressListener as any);
+        }
+        if (dataListener) {
+          (input as any).off?.('data', dataListener as any);
+        }
+        if (rawModeEnabled && (input as any).setRawMode) {
+          (input as any).setRawMode(false);
+          rawModeEnabled = false;
+        }
         rl.close();
       };
 
@@ -82,14 +110,156 @@ export const createMultilineTextPrompt = () => {
       }
 
       output.write(
-        pc.dim(`  Press Enter twice or Alt+Enter to submit\n`)
+        pc.dim(`  Press Enter to submit; Shift+Enter for newline (Alt+Enter fallback)\n`)
       );
 
       const lines = value.split('\n');
       let currentLine = lines.length > 0 ? lines.pop()! : '';
 
+      const getLiveLine = (): string => {
+        const rlLine = typeof (rl as any).line === 'string' ? (rl as any).line : '';
+        if (rlLine.length > 0) return rlLine;
+        return currentLine;
+      };
+
+      const isGhosttyShiftEnter = (str: string, key: any): boolean => {
+        const sequence = String(key?.sequence ?? '');
+        if (sequence.includes('[13;2u')) return true;
+        if (sequence.includes('[27;2;13~')) return true;
+        if (sequence.endsWith('13~')) return true;
+        if (sequence === '13~') return true;
+        if (str === '~13') return true;
+        if (str === '13~') return true;
+        if (str === '\u001b[13;2u') return true;
+        return false;
+      };
+
+      const stripGhosttyShiftEnterSuffix = (line: string): string | null => {
+        const suffixes = [
+          '\u001b[13;2u',
+          '[13;2u',
+          '\u001b[27;2;13~',
+          '[27;2;13~',
+          '13~',
+          '~13'
+        ];
+
+        for (const suffix of suffixes) {
+          if (line.endsWith(suffix)) {
+            return line.slice(0, -suffix.length);
+          }
+        }
+
+        return null;
+      };
+
+      const normalizeGhosttyInlineTokens = (raw: string): string => {
+        return raw.replace(
+          /(?:\u001b\[13;2u|\[13;2u|\u001b\[27;2;13~|\[27;2;13~|13~|~13)/g,
+          '\n'
+        );
+      };
+
+      const stripAnsiControls = (raw: string): string => {
+        return String(raw || '')
+          .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+      };
+
+      const recoverMultilineFromRawPaste = (primary: string): string => {
+        if (!sawPasteLikeRawInput) return '';
+        if (primary.includes('\n')) return '';
+        if (!recentPasteRawBuffer) return '';
+
+        const recoveredLines = stripAnsiControls(recentPasteRawBuffer)
+          .replace(/\r/g, '\n')
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (recoveredLines.length < 2) return '';
+
+        const normalizedPrimary = String(primary || '').trim();
+        const recoveredLastLine = recoveredLines[recoveredLines.length - 1] || '';
+        if (normalizedPrimary && recoveredLastLine !== normalizedPrimary) return '';
+
+        return recoveredLines.join('\n');
+      };
+
+      const buildSubmitValue = (): string => {
+        const primary = normalizeGhosttyInlineTokens(lines.concat(getLiveLine()).join('\n'));
+        const recovered = recoverMultilineFromRawPaste(primary);
+        return recovered || primary;
+      };
+
+      const absorbLine = (line: string) => {
+        if (line.trim() === '') {
+          if (currentLine !== '') {
+            lines.push(currentLine);
+            currentLine = '';
+          }
+          return;
+        }
+
+        if (currentLine !== '') {
+          lines.push(currentLine);
+        }
+        currentLine = line;
+      };
+
+      const insertNewline = () => {
+        lines.push(getLiveLine());
+        currentLine = '';
+        (rl as any).line = '';
+        output.write(`\n${pc.dim('> ')}`);
+      };
+
       const showPrompt = () => {
-        output.write(`\n${pc.dim('> ')}${currentLine}`);
+        output.write(`\n${pc.dim('> ')}${getLiveLine()}`);
+      };
+
+      const BRACKET_PASTE_START = '\u001b[200~';
+      const BRACKET_PASTE_END = '\u001b[201~';
+      const BRACKET_PASTE_PROBE_MAX = 96;
+      const PASTE_BURST_WINDOW_MS = 70;
+      const RAW_PASTE_BUFFER_MAX = 8192;
+      const updateBracketPasteState = (chunk: string) => {
+        if (!chunk) return;
+
+        bracketPasteProbe = `${bracketPasteProbe}${chunk}`.slice(-BRACKET_PASTE_PROBE_MAX);
+
+        if (!bracketPasteActive) {
+          const startIndex = bracketPasteProbe.indexOf(BRACKET_PASTE_START);
+          if (startIndex >= 0) {
+            bracketPasteActive = true;
+            bracketPasteProbe = bracketPasteProbe.slice(startIndex + BRACKET_PASTE_START.length);
+          }
+        }
+
+        if (bracketPasteActive) {
+          const endIndex = bracketPasteProbe.indexOf(BRACKET_PASTE_END);
+          if (endIndex >= 0) {
+            bracketPasteActive = false;
+            bracketPasteProbe = bracketPasteProbe.slice(endIndex + BRACKET_PASTE_END.length);
+          }
+        }
+      };
+
+      const notePossiblePasteBurst = (chunk: string) => {
+        if (!chunk) return;
+        const normalized = chunk
+          .replaceAll(BRACKET_PASTE_START, '')
+          .replaceAll(BRACKET_PASTE_END, '');
+        if (!normalized) return;
+        // In raw mode, normal typing usually arrives as single-byte chunks.
+        // Multi-byte chunks and newlines are strong signals that input is a paste burst.
+        if (normalized.length > 1 || /[\r\n]/.test(normalized)) {
+          sawPasteLikeRawInput = true;
+          recentPasteRawBuffer = `${recentPasteRawBuffer}${normalized}`.slice(-RAW_PASTE_BUFFER_MAX);
+          recentPasteBurstUntil = Math.max(
+            recentPasteBurstUntil,
+            Date.now() + PASTE_BURST_WINDOW_MS
+          );
+        }
       };
 
       showPrompt();
@@ -133,30 +303,58 @@ export const createMultilineTextPrompt = () => {
 
       rl.on('line', (line: string) => {
         if (cancelled) return;
-
         const now = Date.now();
+
+        if (pendingEnterSubmit) {
+          const likelyPasteFlow = now < recentPasteBurstUntil;
+          pendingEnterSubmit = false;
+          if (pendingEnterSubmitTimer) {
+            clearTimeout(pendingEnterSubmitTimer);
+            pendingEnterSubmitTimer = undefined;
+          }
+          if (likelyPasteFlow) {
+            absorbLine(line);
+            showPrompt();
+            return;
+          }
+          absorbLine(line);
+          submit(buildSubmitValue());
+          return;
+        }
+
+        if (ignoreNextLineEvent) {
+          ignoreNextLineEvent = false;
+          return;
+        }
+
+        if (expectingGhosttySequenceEcho) {
+          if (line === '13~' || line === '~13' || line === '[13;2u' || line === '\u001b[13;2u') {
+            expectingGhosttySequenceEcho = false;
+            return;
+          }
+          expectingGhosttySequenceEcho = false;
+        }
+
+        // Some terminals (notably Ghostty on macOS) may emit Shift+Enter as literal
+        // suffix text like "13~" without keypress modifier metadata.
+        const ghosttySuffixTrimmedLine = stripGhosttyShiftEnterSuffix(line);
+        if (ghosttySuffixTrimmedLine !== null) {
+          lines.push(ghosttySuffixTrimmedLine);
+          currentLine = '';
+          (rl as any).line = '';
+          showPrompt();
+          return;
+        }
 
         // Check for double Enter to submit
         if (line === '' && now - lastEnterTime < DOUBLE_ENTER_TIMEOUT) {
-          submit(lines.join('\n') + currentLine);
+          submit(buildSubmitValue());
           return;
         }
 
         lastEnterTime = now;
 
-        if (line.trim() === '') {
-          // Empty line - add to lines
-          if (currentLine !== '') {
-            lines.push(currentLine);
-            currentLine = '';
-          }
-        } else {
-          // Non-empty line
-          if (currentLine !== '') {
-            lines.push(currentLine);
-          }
-          currentLine = line;
-        }
+        absorbLine(line);
 
         showPrompt();
       });
@@ -175,11 +373,53 @@ export const createMultilineTextPrompt = () => {
 
       // Handle paste via keyboard shortcut
       if (allowPaste && (input as any).setRawMode) {
+        emitKeypressEvents(input as any);
         (input as any).setRawMode(true);
+        rawModeEnabled = true;
         (input as any).resume();
 
-        input.on('keypress', async (str: string, key: any) => {
+        dataListener = (chunk: unknown) => {
           if (cancelled) return;
+          const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk ?? '');
+          updateBracketPasteState(text);
+          notePossiblePasteBurst(text);
+        };
+
+        (input as any).on('data', dataListener as any);
+
+        keypressListener = async (str: string, key: any) => {
+          if (cancelled) return;
+
+          if (key?.ctrl && key.name === 'c') {
+            doCancel();
+            return;
+          }
+
+          if (key?.name === 'escape') {
+            doCancel();
+            return;
+          }
+
+          // In bracketed paste mode, treat all incoming keypresses as paste content.
+          // This avoids accidental submit on Enter while multi-line paste is flowing.
+          if (bracketPasteActive) {
+            return;
+          }
+
+          // Some terminals emit Shift+Enter as literal chars "13~" with no key metadata.
+          // Readline may already have appended those chars into rl.line by the time we run.
+          if (!key?.ctrl && !key?.meta && key?.name !== 'enter' && key?.name !== 'return') {
+            const strippedLive = stripGhosttyShiftEnterSuffix(String((rl as any).line ?? ''));
+            if (strippedLive !== null) {
+              lines.push(strippedLive);
+              currentLine = '';
+              (rl as any).line = '';
+              output.write('\r' + ' '.repeat(process.stdout.columns || 80) + '\r');
+              output.write(`${pc.dim('> ')}${strippedLive}`);
+              output.write(`\n${pc.dim('> ')}`);
+              return;
+            }
+          }
 
           // Detect Ctrl+V or Cmd+V for paste
           if ((key.ctrl && key.name === 'v') || (key.meta && key.name === 'v')) {
@@ -198,15 +438,40 @@ export const createMultilineTextPrompt = () => {
                 currentLine += pasted;
               }
 
+              (rl as any).line = currentLine;
+
               output.write(`${pc.dim('> ')}${currentLine}`);
             }
-          } else if (key.alt && key.name === 'enter') {
-            // Alt+Enter to submit
-            submit(lines.join('\n') + currentLine);
-          } else if (key.name === 'escape') {
-            doCancel();
+          } else if (isGhosttyShiftEnter(str, key)) {
+            expectingGhosttySequenceEcho = true;
+            insertNewline();
+          } else if (key.name === 'enter' || key.name === 'return') {
+            const now = Date.now();
+            const likelyPasteReturn = now < recentPasteBurstUntil;
+            if (likelyPasteReturn) {
+              return;
+            }
+            if (key.shift || key.alt) {
+              ignoreNextLineEvent = true;
+              // Shift+Enter / Alt+Enter inserts a new line.
+              insertNewline();
+              return;
+            }
+
+            pendingEnterSubmit = true;
+            if (pendingEnterSubmitTimer) {
+              clearTimeout(pendingEnterSubmitTimer);
+            }
+            pendingEnterSubmitTimer = setTimeout(() => {
+              if (!pendingEnterSubmit || cancelled) return;
+              pendingEnterSubmit = false;
+              pendingEnterSubmitTimer = undefined;
+              submit(buildSubmitValue());
+            }, 20);
           }
-        });
+        };
+
+        input.on('keypress', keypressListener as any);
       }
 
       // Handle non-interactive terminal
