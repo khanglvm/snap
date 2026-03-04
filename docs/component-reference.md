@@ -56,9 +56,10 @@ When `paste` is enabled, users can paste from clipboard using:
 - macOS/Linux: `Cmd+V` or `Ctrl+V`
 - Windows: `Ctrl+V`
 
-Multi-line paste is automatically supported. Submit with:
-- `Alt+Enter` or `Cmd+Enter`
-- Double `Enter` (press Enter twice quickly)
+Multi-line paste is automatically supported. Keyboard behavior:
+- `Enter` submits input
+- `Shift+Enter` inserts a newline (including Ghostty/macOS fallback sequences like `13~`)
+- `Alt+Enter` inserts a newline fallback
 
 ### confirm
 Yes/no confirmation prompt.

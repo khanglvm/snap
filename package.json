@@ -1,6 +1,6 @@
 {
   "name": "@levu/snap",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "type": "module",
   "bin": {
     "snap": "./dist/cli-entry.js"
@@ -12,7 +12,8 @@
     "dev": "tsx src/cli-entry.ts"
   },
   "dependencies": {
-    "@clack/prompts": "^1.0.0"
+    "@clack/prompts": "^1.0.0",
+    "picocolors": "^1.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

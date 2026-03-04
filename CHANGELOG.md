@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.12] - 2026-03-04
+
+### Fixed
+- Added missing runtime dependency `picocolors` to prevent `ERR_MODULE_NOT_FOUND` when consuming password/multiline adapters from published packages.
+- Improved password prompt stability with a raw-mode terminal path to reduce cursor/glyph jitter in interactive input.
+- Added password adapter regression tests and updated component reference keyboard behavior notes.
+
 ## [0.3.11] - 2026-02-28
 
 ### Fixed
