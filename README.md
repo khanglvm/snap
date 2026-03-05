@@ -21,6 +21,7 @@ For module/tool authors, Snap also exposes optional DX helper groups:
 - Uses Clack-powered prompt adapters for interactive TUI (`select`, `text`, `confirm`, `multiselect`)
 - Text prompts support clipboard paste and multiline input for pasting multiple lines
 - Supports workflow transitions: `next`, `back`, `jump`, `exit`
+- In TUI mode, pressing `Esc` backs to the previous workflow step by default; pressing `Esc` on the root step exits.
 - Supports resume checkpoints for interrupted flows
 - Produces stable help output hierarchy:
   - `snap -h`

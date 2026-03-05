@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.13] - 2026-03-05
+
+### Changed
+- TUI prompt cancellation (`Esc`) now defaults to step-back behavior when the workflow has a previous step; when already at the first/root step, cancel still exits.
+- Runtime engine now maps root prompt-cancel to exit code `130` (`INTERRUPTED`) instead of internal error.
+- Added prompt lifecycle hooks in `createPromptToolkit` to support cancel/retry navigation handling.
+
+### Added
+- Added regression tests for prompt retry/cancel lifecycle handling and runtime retry/interrupted behavior.
+
 ## [0.3.12] - 2026-03-04
 
 ### Fixed
